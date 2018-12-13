@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: skipper-ingress
+  namespace: kube-system
+  labels:
+    component: ingress
+spec:
+  selector:
+    matchLabels:
+      component: ingress
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      name: skipper-ingress
+      labels:
+        component: ingress
+        application: skipper
+    spec:
+      hostNetwork: true
+      serviceAccountName: skipper-ingress
+      containers:
+      - name: skipper-ingress
+        image: registry.opensource.zalan.do/pathfinder/skipper:latest
+        ports:
+        - name: ingress-port
+          containerPort: 9999
+          hostPort: 9999
+        - name: metrics-port
+          containerPort: 9911
+        args:
+          - "skipper"
+          - "-kubernetes"
+          - "-kubernetes-in-cluster"
+          - "-address=:9999"
+          - "-proxy-preserve-host"
+          - "-serve-host-metrics"
+          - "-enable-ratelimits"
+          - "-experimental-upgrade"
+          - "-metrics-exp-decay-sample"
+          - "-lb-healthcheck-interval=3s"
+          - "-metrics-flavour=codahale,prometheus"
+          - "-enable-connection-metrics"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 200Mi
+        readinessProbe:
+          httpGet:
+            path: /kube-system/healthz
+            port: 9999
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
